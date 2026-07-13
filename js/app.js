@@ -73,9 +73,33 @@
   };
 
   /* ---------- Модал ---------- */
+  // Заключва скрола на фона зад модала. На iOS Safari overflow:hidden на body
+  // не спира тъч-скрола отдолу, затова тялото се фиксира на текущата позиция.
+  let _scrollLockY = 0, _scrollLocked = false;
+  function lockScroll() {
+    if (_scrollLocked) return;
+    _scrollLocked = true;
+    _scrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_scrollLockY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+  function unlockScroll() {
+    if (!_scrollLocked) return;
+    _scrollLocked = false;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, _scrollLockY);
+  }
   function modal({ title, body, footer, large }) {
     const host = document.getElementById('modal-host');
     host.hidden = false;
+    lockScroll();
     host.innerHTML = `
       <div class="modal-scrim" data-close></div>
       <div class="modal ${large ? 'modal-lg' : ''}" role="dialog" aria-modal="true">
@@ -86,7 +110,7 @@
     $$('[data-close]', host).forEach(b => b.onclick = closeModal);
     return host;
   }
-  function closeModal() { const h = document.getElementById('modal-host'); h.hidden = true; h.innerHTML = ''; }
+  function closeModal() { const h = document.getElementById('modal-host'); h.hidden = true; h.innerHTML = ''; unlockScroll(); }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   /* ---------- Рутер ---------- */

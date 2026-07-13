@@ -166,6 +166,12 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 .input:focus, .select:focus, .textarea:focus {
   outline: none; border-color: var(--brand-light); box-shadow: 0 0 0 4px var(--ring); background: #fff;
 }
+/* WebKit/Blink налагат вътрешен минимален размер на type=date/time, който
+   игнорира width/max-width — принуждаваме го да се съобрази с контейнера */
+input[type="date"], input[type="time"] {
+  -webkit-min-logical-width: 0%;
+  min-width: 0;
+}
 .textarea { resize: vertical; min-height: 92px; }
 .textarea-lg { min-height: 120px; }
 .select { appearance: none;
