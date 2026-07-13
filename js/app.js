@@ -146,7 +146,7 @@
             </form>
 
             <form id="parentForm" class="auth-form" hidden>
-              <h2>Родителски достъп ${I.heart}</h2>
+              <h2>Родителски достъп</h2>
               <p class="subtle" style="margin-bottom:18px">Виж напредъка на детето си.</p>
               <div class="field"><label>Код от треньора (8 цифри)</label><input class="input" name="code" inputmode="numeric" maxlength="8" placeholder="12345678" required style="letter-spacing:5px;font-weight:700"></div>
               <div class="field"><label>Дата на раждане на детето</label><input class="input" name="birth" type="date" required></div>
