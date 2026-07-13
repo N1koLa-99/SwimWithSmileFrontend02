@@ -24,6 +24,7 @@
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
     up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M6 12l6-6 6 6"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 12l6 6 6-6"/></svg>',
   };
 
   /* ---------- Помощници ---------- */
@@ -203,6 +204,12 @@
   function shell(active, content) {
     const u = API.getUser() || {};
     document.body.classList.add('has-topbar');
+    const navItems = [
+      { to: '/app/calendar', key: 'calendar', ico: I.cal, label: 'График' },
+      { to: '/app/children', key: 'children', ico: I.kids, label: 'Деца' },
+      { to: '/app/achievements', key: 'achievements', ico: I.trophy, label: 'Постижения' },
+    ];
+    const navLink = it => `<a href="#${it.to}" class="${active===it.key?'active':''}">${it.ico}<span>${it.label}</span></a>`;
     app.innerHTML = `
       <div class="aqua-bg"></div>
       <header class="topbar">
@@ -210,17 +217,25 @@
           <div class="brand-name">Swim<span>With</span>Smile</div>
         </div>
         <nav class="nav">
-          <a href="#/app/calendar" class="${active==='calendar'?'active':''}">${I.cal}<span>График</span></a>
-          <a href="#/app/children" class="${active==='children'?'active':''}">${I.kids}<span>Деца</span></a>
-          <a href="#/app/achievements" class="${active==='achievements'?'active':''}">${I.trophy}<span>Постижения</span></a>
+          ${navItems.map(navLink).join('')}
         </nav>
         <div class="topbar-right">
           <div class="usr"><span class="nm">${esc(u.name || u.email || 'Треньор')}</span><div class="avatar">${esc(initials(u.name||'Т', ' '))}</div></div>
           <button class="btn-icon btn-ghost" id="logoutBtn" title="Изход">${I.logout}</button>
         </div>
       </header>
-      <div class="wrap" id="view">${content}</div>`;
-    $('#logoutBtn').onclick = () => { API.logout(); navigate('/login'); };
+      <div class="wrap" id="view">${content}</div>
+      <nav class="bottom-nav" aria-label="Основна навигация">
+        ${navItems.map(navLink).join('')}
+      </nav>`;
+    $('#logoutBtn').onclick = () => {
+      modal({
+        title: 'Изход',
+        body: `<p>Сигурни ли сте, че искате да излезете от профила си?</p>`,
+        footer: `<button class="btn btn-ghost" data-close>Отказ</button><button class="btn btn-primary" id="confirmLogout">${I.logout} Изход</button>`
+      });
+      $('#confirmLogout').onclick = () => { closeModal(); API.logout(); navigate('/login'); };
+    };
   }
   const guard = () => { if (!API.isAuthed()) { navigate('/login'); return false; } return true; };
 
@@ -263,7 +278,7 @@
     if (!guard()) return;
     shell('calendar', `
       <div class="page-head">
-        <div><h1 class="pagettl">График</h1><p class="subtle">Тренировки по дни</p></div>
+        <div><h1 class="pagettl">График</h1><p class="subtle hide-sm">Тренировки по дни</p></div>
         <button class="btn btn-primary" id="newSession">${I.plus} Нова тренировка</button>
       </div>
       <div class="card card-pad rise">
@@ -637,16 +652,26 @@
       try { const r = await API.regenerateCode(c.id); toast('Нов код: ' + r.parentCode, 'ok'); c.parentCode = r.parentCode; navigate('/app/child/'+c.id); render(); } catch(e){ err(e); } };
   }
 
+  // Индикатор за тенденция спрямо предната карта — зелена стрелка нагоре при подобрение, червена надолу при спад
+  function trend(v, pv, suffix = '%') {
+    if (v == null || pv == null || v === pv) return '';
+    const up = v > pv;
+    const diff = Math.abs(v - pv);
+    return `<span class="trend ${up?'trend-up':'trend-down'}" title="${up?'Подобрение':'Спад'} спрямо предната карта (${up?'+':'-'}${diff}${suffix})">${up?I.up:I.down}${diff}${suffix}</span>`;
+  }
   async function progressTab(c) {
     const list = await API.childProgress(c.id) || [];
     const add = `<button class="btn btn-primary btn-sm" id="addProg" style="margin-bottom:16px">${I.plus} Нова карта за напредък</button>`;
     if (!list.length) return add + emptyState(I.trophy, 'Няма карти за напредък', 'Създай първата.');
+    const legend = list.length > 1 ? `<div class="trend-legend">
+        <span class="trend trend-up">${I.up}<b>подобрение</b></span>
+        <span class="trend trend-down">${I.down}<b>спад</b></span>
+        <span class="subtle">спрямо предната карта</span>
+      </div>` : '';
     const cards = list.map((p, i) => {
       const prev = list[i + 1] || null; // предната (по-стара) карта
-      const arrow = (v, pv) => (v != null && pv != null && v > pv)
-        ? `<span class="up-arrow" title="Подобрение спрямо предната карта">${I.up}</span>` : '';
-      const bar = (lbl, v, pv) => v==null?'':`<div class="prog-row"><div class="prog-top"><span>${lbl} ${arrow(v,pv)}</span><span class="val">${v}%</span></div><div class="prog-track"><div class="prog-fill" data-w="${v}"></div></div></div>`;
-      const dots = (lbl, v, pv) => v==null?'':`<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${lbl} ${arrow(v,pv)}</span>${ratingDots(v)}</div>`;
+      const bar = (lbl, v, pv) => v==null?'':`<div class="prog-row"><div class="prog-top"><span>${lbl}</span><span class="val">${v}% ${trend(v,pv,'%')}</span></div><div class="prog-track"><div class="prog-fill" data-w="${v}"></div></div></div>`;
+      const dots = (lbl, v, pv) => v==null?'':`<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${lbl}</span><span style="display:flex;align-items:center;gap:8px">${trend(v,pv,'')}${ratingDots(v)}</span></div>`;
       return `<div class="card card-pad" style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;margin-bottom:14px"><strong style="font-family:var(--font-head)">${esc(p.periodLabel||'Оценка')}</strong><span class="subtle">${fmtDate(p.assessmentDate)}</span></div>
         ${bar('Сила',p.physStrength,prev?.physStrength)}${bar('Гъвкавост',p.physFlexibility,prev?.physFlexibility)}${bar('Издръжливост',p.physEndurance,prev?.physEndurance)}${bar('Координация',p.physCoordination,prev?.physCoordination)}
@@ -655,7 +680,7 @@
         ${p.coachNotes?`<div class="info-item" style="margin-top:10px"><div class="k">Бележки</div><div class="v">${esc(p.coachNotes)}</div></div>`:''}
       </div>`;
     }).join('');
-    return add + `<div class="stagger">${cards}</div>`;
+    return add + legend + `<div class="stagger">${cards}</div>`;
   }
   const ratingDots = (v) => `<span class="rate">${[1,2,3,4,5].map(i=>`<span class="d ${i<=v?'on-'+v:''}"></span>`).join('')}</span>`;
   function bindProg(c){ const b=$('#addProg'); if(b) b.onclick=()=>progressForm(c); }
@@ -1083,8 +1108,12 @@
   /* ---------- Стилове за пикери (малки) ---------- */
   const st = document.createElement('style');
   st.textContent = `
-    .up-arrow{display:inline-flex;vertical-align:middle;color:#7BC96F}
-    .up-arrow svg{width:15px;height:15px}
+    .trend{display:inline-flex;align-items:center;gap:1px;vertical-align:middle;font-family:var(--font-head);font-weight:800;font-size:.78rem;padding:2px 6px 2px 4px;border-radius:var(--r-pill)}
+    .trend svg{width:13px;height:13px;flex-shrink:0}
+    .trend-up{color:#1B7A47;background:#D9F7E6}
+    .trend-down{color:#B0303B;background:#FBD9DC}
+    .trend-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:.86rem}
+    .trend-legend b{font-weight:800}
     .att-seg{display:inline-flex;gap:4px;background:var(--sky-50);border-radius:var(--r-pill);padding:4px}
     .att-opt{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:var(--r-pill);font-family:var(--font-head);font-weight:600;font-size:.82rem;color:var(--ink-2);transition:all .15s;white-space:nowrap}
     .att-opt svg{width:15px;height:15px}

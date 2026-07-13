@@ -68,6 +68,8 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   line-height: 1.5;
+  width: 100%;
+  overflow-x: hidden;
 }
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 button { cursor: pointer; border: none; background: none; }
@@ -77,7 +79,7 @@ img { display: block; max-width: 100%; }
 
 h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height: 1.15; letter-spacing: -.02em; }
 
-.app-root { min-height: 100dvh; display: flex; flex-direction: column; }
+.app-root { min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
 
 /* ============================================================
    Атмосфера — акватичен фон
@@ -245,6 +247,32 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 .usr .avatar { width:34px; height:34px; border-radius:50%; background: linear-gradient(135deg,var(--brand-light),var(--navy)); color:#fff; display:grid; place-items:center; font-family:var(--font-head); font-weight:700; font-size:.9rem; }
 .usr .nm { font-weight:700; font-size:.9rem; color:var(--navy); }
 
+/* ============================================================
+   Долна навигация (треньор, мобилен изглед) — наподобява таб бар
+   на нативно приложение: фиксирана, центрирана, с големи зони за
+   натискане и ясно видимо активно състояние.
+   ============================================================ */
+.bottom-nav {
+  display: none;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  justify-content: center; align-items: stretch; gap: 4px;
+  background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border-top: 1px solid var(--sky-100);
+  box-shadow: 0 -8px 24px rgba(10,42,107,.08);
+  padding: 6px max(10px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
+}
+.bottom-nav a {
+  flex: 1 1 0; max-width: 132px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 56px; padding: 6px 4px; border-radius: 16px;
+  font-family: var(--font-head); font-weight: 600; font-size: .68rem; letter-spacing: .01em;
+  color: var(--muted); transition: color .16s var(--ease), background .16s var(--ease);
+}
+.bottom-nav a svg { width: 23px; height: 23px; transition: transform .16s var(--ease); }
+.bottom-nav a:active svg { transform: scale(.88); }
+.bottom-nav a.active { color: var(--navy); background: var(--sky-50); }
+.bottom-nav a.active svg { color: var(--brand); }
+
 /* container */
 .wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding: clamp(20px,4vw,36px) clamp(16px,4vw,34px) 80px; flex: 1; }
 .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom: 24px; }
@@ -363,18 +391,27 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 .profile-info .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
 .profile-info .badge { background: rgba(255,255,255,.16); color:#fff; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
-.tabs { display:flex; gap:6px; margin: 22px 0; overflow-x:auto; padding-bottom:2px; }
-.tab {
-  padding: 10px 18px; border-radius: var(--r-pill); font-family:var(--font-head); font-weight:600;
-  color:var(--ink-2); white-space:nowrap; transition: all .16s; background: var(--white); box-shadow: var(--shadow-sm);
+/* единна лента (сегментиран контрол), а не отделни плаващи бутони */
+.tabs {
+  display:flex; gap:3px; margin: 22px 0; padding: 5px;
+  background: var(--sky-50); border-radius: var(--r-pill); border: 1px solid var(--sky-100);
+  overflow-x:auto; -ms-overflow-style:none; scrollbar-width:none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
-.tab:hover { background: var(--sky-50); }
+.tabs::-webkit-scrollbar { display:none; }
+.tab {
+  flex: 0 0 auto;
+  padding: 10px 17px; border-radius: var(--r-pill); font-family:var(--font-head); font-weight:600; font-size:.92rem;
+  color:var(--ink-2); white-space:nowrap; transition: all .16s var(--ease); background:transparent;
+}
+.tab:hover { color:var(--navy); background: rgba(255,255,255,.65); }
 .tab.active { background: var(--navy); color:#fff; box-shadow: var(--shadow-navy); }
 
-.info-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+.info-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
 .info-item {
   background: var(--paper); border:1.5px solid var(--sky-100); border-radius: var(--r-md);
-  padding:13px 16px 15px; transition: border-color .16s, background .16s;
+  padding:12px 14px 13px; min-width:0; transition: border-color .16s, background .16s;
 }
 .info-item:hover { border-color: var(--sky-200); background: #fff; }
 .info-item .k {
@@ -509,10 +546,19 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
   .usr .nm { display:none; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
 }
+@media (max-width: 680px) {
+  :root { --bottom-nav-h: 74px; }
+  /* навигацията се мести долу — истински таб бар на приложение */
+  .topbar .nav { display:none; }
+  .bottom-nav { display:flex; }
+  .wrap { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 22px); }
+  .toast-host { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 14px); }
+  .hide-sm { display:none; }
+  /* заглавие + основно действие се подреждат едно под друго, центрирани */
+  .page-head { flex-direction:column; align-items:center; text-align:center; gap:14px; }
+}
 @media (max-width: 480px) {
-  .brand-name { display:none; }
-  .nav { gap:2px; margin-left:2px; }
-  .nav a { padding: 9px 10px; }
+  .brand-name { font-size: .92rem; }
 }
 @media (max-width: 560px) {
   :root { --header-h: 64px; }
@@ -535,6 +581,12 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
   .profile-info .row { justify-content:center; }
   .modal-foot { flex-direction: column-reverse; }
   .modal-foot .btn { width:100%; }
+  .tabs { margin: 18px -4px 22px; }
+  .card-pad { padding: 16px; }
+  .info-grid { grid-template-columns: repeat(auto-fit,minmax(122px,1fr)); gap:8px; }
+  .info-item { padding:10px 12px 11px; }
+  .info-item .k { font-size:.63rem; }
+  .info-item .v { font-size:.9rem; margin-top:4px; }
 }
 
 /* ============================================================
