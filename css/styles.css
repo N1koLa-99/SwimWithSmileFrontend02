@@ -311,13 +311,15 @@ input[type="date"], input[type="time"] {
 }
 .cal-dow.weekend { color: var(--brand-light); }
 .cal-cell {
-  position:relative; min-height:116px; background:#fff; padding:4px 5px 6px; cursor:pointer;
-  display:flex; flex-direction:column; gap:2px; overflow:hidden;
+  position:relative; min-height:132px; background:#fff; padding:6px 7px 8px; cursor:pointer;
+  display:flex; flex-direction:column; gap:3px; overflow:hidden;
   border-right:1px solid var(--sky-50); border-bottom:1px solid var(--sky-50);
   transition: background .15s;
 }
 .cal-cell:hover { background: var(--sky-50); }
+.cal-cell:active { background: var(--sky-100); }
 .cal-cell.empty { background:#fafcff; cursor:default; }
+.cal-cell.empty:active { background:#fafcff; }
 .cal-cell.empty:hover { background:#fafcff; }
 .cal-cell.weekend:not(.empty) { background:#fbfdff; }
 .cal-cell.weekend:not(.empty):hover { background: var(--sky-50); }
@@ -589,11 +591,12 @@ input[type="date"], input[type="time"] {
   .cal-head { gap:8px; }
   .cal-title { font-size:1.08rem; order:-1; flex-basis:100%; text-align:center; margin-bottom:2px; }
   .cal-grid { gap:0; }
-  .cal-cell { min-height:74px; border-radius:0; padding:4px; }
-  .cal-daynum { min-width:22px; height:22px; font-size:.78rem; padding:0 3px; }
-  .cal-events { display:flex; gap:3px; }
-  .cal-ev { font-size:0; height:6px; padding:0; border-radius:99px; line-height:0; }
-  .cal-more { font-size:.58rem; }
+  .cal-cell { min-height:92px; border-radius:0; padding:7px 4px; align-items:center; }
+  .cal-daynum { align-self:center; min-width:28px; height:28px; font-size:.88rem; padding:0; margin-bottom:4px; }
+  .cal-events { display:flex; justify-content:center; gap:5px; flex-wrap:wrap; max-width:100%; }
+  /* на телефон събитията стават малки цветни точки — цялата клетка отваря графика на деня */
+  .cal-ev { font-size:0; width:8px; height:8px; padding:0; border-radius:99px; line-height:0; flex-shrink:0; }
+  .cal-more { font-size:.66rem; line-height:8px; padding:0 2px; }
   .cal-dow { font-size:.62rem; padding:7px 0; }
   .kid-grid { grid-template-columns: 1fr; gap:10px; }
   .kid { display:flex; align-items:center; gap:14px; border-radius: var(--r-md); }

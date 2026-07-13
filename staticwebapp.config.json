@@ -1,0 +1,10 @@
+{
+  "globalHeaders": {
+    "Cache-Control": "no-cache"
+  },
+  "routes": [
+    { "route": "/css/*", "headers": { "Cache-Control": "public, max-age=31536000, immutable" } },
+    { "route": "/js/*", "headers": { "Cache-Control": "public, max-age=31536000, immutable" } },
+    { "route": "/assets/*", "headers": { "Cache-Control": "public, max-age=31536000, immutable" } }
+  ]
+}

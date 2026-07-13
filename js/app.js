@@ -369,8 +369,9 @@
     }
     const legend = Object.values(_coachColors || {}).map(cc => `<span class="legend-item"><span class="dot" style="background:${cc.color}"></span>${esc(cc.name)}</span>`).join('');
     body.innerHTML = `${legend ? `<div class="coach-legend">${legend}</div>` : ''}<div class="cal-grid">${cells}</div>`;
+    // Цялата клетка води към графика на деня — вътре в него се избира конкретна тренировка.
+    // Така не се налага да се цели точно в малкия цветен маркер на телефон.
     $$('.cal-cell[data-day]', body).forEach(c => c.onclick = () => dayModal(+c.dataset.day, byDay[+c.dataset.day] || []));
-    $$('.cal-ev[data-sid]', body).forEach(el => el.onclick = (e) => { e.stopPropagation(); sessionDetail(el.dataset.sid); });
   }
 
   // Обогатява клетките на календара с имената на децата (в стил Apple Calendar), без да блокира първото рисуване
