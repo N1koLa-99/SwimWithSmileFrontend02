@@ -157,7 +157,7 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 .field .hint { font-size: .76rem; color: var(--muted); }
 
 .input, .select, .textarea {
-  width: 100%; background: var(--paper); border: 1.8px solid var(--sky-100);
+  width: 100%; min-width: 0; background: var(--paper); border: 1.8px solid var(--sky-100);
   border-radius: var(--r-sm); padding: 14px 16px; color: var(--ink); font-size: 1rem;
   transition: border-color .18s, box-shadow .18s, background .18s;
 }
@@ -226,8 +226,10 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
    Топ навигация (треньор)
    ============================================================ */
 .topbar {
-  position: sticky; top: 0; z-index: 40; height: var(--header-h);
-  display: flex; align-items: center; gap: 18px; padding: 0 clamp(16px,4vw,34px);
+  position: sticky; top: 0; z-index: 40;
+  height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  display: flex; align-items: center; gap: 18px; padding-left: clamp(16px,4vw,34px); padding-right: clamp(16px,4vw,34px);
   background: rgba(255,255,255,.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--sky-100);
 }
@@ -641,7 +643,7 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 
 @media (max-width: 900px) {
   .auth { grid-template-columns: 1fr; }
-  .auth-hero { min-height: 300px; padding: 34px; }
+  .auth-hero { min-height: 300px; padding: 34px; padding-top: calc(34px + env(safe-area-inset-top, 0px)); }
   .auth-feats { display:none; }
   .auth-h { font-size: 2.2rem; }
   .auth-panel { padding: 26px 18px 50px; }
