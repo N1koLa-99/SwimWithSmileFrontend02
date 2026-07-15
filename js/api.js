@@ -106,6 +106,7 @@ const API = (() => {
     child: (id) => get(`/api/children/${id}`),
     createChild: (dto) => post('/api/children', dto),
     updateChild: (id, dto) => put(`/api/children/${id}`, dto),
+    deleteChild: (id) => del(`/api/children/${id}`),
     regenerateCode: (id) => post(`/api/children/${id}/regenerate-code`),
     childHistory: (id) => get(`/api/children/${id}/history`),
     childProgress: (id) => get(`/api/children/${id}/progress`),
