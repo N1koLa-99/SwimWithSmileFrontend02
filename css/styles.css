@@ -221,8 +221,11 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
    Топ навигация (треньор)
    ============================================================ */
 .topbar {
-  position: sticky; top: 0; z-index: 40; height: var(--header-h);
-  display: flex; align-items: center; gap: 18px; padding: 0 clamp(16px,4vw,34px);
+  position: sticky; top: 0; z-index: 40;
+  height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  box-sizing: border-box;
+  display: flex; align-items: center; gap: 18px;
+  padding: env(safe-area-inset-top, 0px) clamp(16px,4vw,34px) 0;
   background: rgba(255,255,255,.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--sky-100);
 }
@@ -574,7 +577,7 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--navy); line-height:
 }
 
 /* --- родителски изглед --- */
-.parent-top { background: linear-gradient(150deg, var(--navy), var(--brand)); color:#fff; padding: 16px clamp(16px,4vw,34px); display:flex; align-items:center; gap:14px; }
+.parent-top { background: linear-gradient(150deg, var(--navy), var(--brand)); color:#fff; padding: calc(16px + env(safe-area-inset-top, 0px)) clamp(16px,4vw,34px) 16px; display:flex; align-items:center; gap:14px; }
 .parent-top .brand-name { color:#fff; }
 .parent-top .brand-name span { color: var(--sky-200); }
 .reward-tag { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.8rem; color:#6b4a05; background: linear-gradient(135deg,#FFE29A,var(--gold)); padding:5px 12px; border-radius: var(--r-pill); }
