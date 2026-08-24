@@ -9,7 +9,7 @@
    ============================================================ */
 
 const API = (() => {
-  const DEFAULT_BASE = 'https://script.google.com/macros/s/AKfycbyQJ0IlWdZv6p7-Fqxk0RbPnvaHWv_cIsCuqx-boC0zByH6JJ8ELPAOmI4jhDrvPGmDrg/exec';
+  const DEFAULT_BASE = 'https://script.google.com/macros/s/AKfycbxzpytpkyBXoKVI2kPtq7Axhj6pOQnlDzcvdLAimyyesSccO8ZhoiLmoGgGloocPoFWRw/exec';
 
   const LS_BASE  = 'sws.apiBase';
   const LS_TOKEN = 'sws.token';
