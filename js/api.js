@@ -92,6 +92,7 @@ const API = (() => {
     // ---- Sessions ----
     calendar: (y, m) => call('sessions', { year: y, month: m }),
     sessions: (y, m) => call('sessions', { year: y, month: m }),
+    calendarEvents: (y, m) => call('calendarEvents', { year: y, month: m }),
     session: (id) => call('session', { id }),
     createSession: (dto) => call('createSession', { data: dto }),
     updateSession: (id, dto) => call('updateSession', { id, data: dto }),

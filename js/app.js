@@ -302,19 +302,32 @@
   });
 
   let calRenderToken = 0;
+  let _gcalById = {};
 
   async function drawCalendar() {
     const myToken = ++calRenderToken;
     const t = $('#calTitle'); if (!t) return;
     t.textContent = `${MONTHS[calState.m]} ${calState.y}`;
     const body = $('#calBody'); body.innerHTML = loading();
-    let list = [];
-    try { list = await API.sessions(calState.y, calState.m + 1) || []; } catch (e) { err(e); }
+    let list = [], calEvents = [];
+    try {
+      [list, calEvents] = await Promise.all([
+        API.sessions(calState.y, calState.m + 1).then(r => r || []),
+        API.calendarEvents(calState.y, calState.m + 1).then(r => r || []).catch(() => []) // ако още не е разрешен Календарът, просто няма събития
+      ]);
+    } catch (e) { err(e); }
     if (myToken !== calRenderToken) return; // потребителят вече е сменил месеца
     await ensureCoachColors();
 
     const byDay = {};
     list.forEach(s => { const d = new Date(s.sessionDate).getDate(); (byDay[d] ||= []).push(s); });
+    const byDayCal = {};
+    _gcalById = {};
+    calEvents.forEach(ev => {
+      const d = new Date(ev.date + 'T00:00:00').getDate();
+      (byDayCal[d] ||= []).push(ev);
+      _gcalById[ev.id] = ev;
+    });
 
     const first = new Date(calState.y, calState.m, 1);
     const offset = (first.getDay() + 6) % 7; // понеделник = 0
@@ -338,15 +351,42 @@
         const title = `${fmtTime(s.startTime)} · ${s.coachName || 'Треньор'} · ${cnt} деца`;
         return `<div class="cal-ev" data-sid="${s.id}" style="background:${coachColor(s.coachId)}" title="${esc(title)}">${esc(label)}</div>`;
       }).join('') + (rest > 0 ? `<div class="cal-more">+${rest} още</div>` : '');
+      // Събития от Google Calendar (само за преглед)
+      const calArr = (byDayCal[d] || []).slice().sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
+      const calShown = calArr.slice(0, 2);
+      const calRest = calArr.length - calShown.length;
+      const calPills = calShown.map(ev => {
+        const time = ev.allDay ? '' : (fmtTime(ev.startTime) + ' ');
+        const title = `${ev.allDay ? 'Цял ден' : fmtTime(ev.startTime)} · ${ev.title} (Google Calendar)`;
+        return `<div class="cal-ev cal-gcal" data-gcal="${esc(ev.id)}" title="${esc(title)}">📅 ${esc(time + ev.title)}</div>`;
+      }).join('') + (calRest > 0 ? `<div class="cal-more">+${calRest} 📅</div>` : '');
       cells += `<div class="cal-cell ${isToday?'today':''} ${dow>=5?'weekend':''}" data-day="${d}">
         <div class="cal-daynum">${d}</div>
-        <div class="cal-events">${events}</div>
+        <div class="cal-events">${events}${calPills}</div>
       </div>`;
     }
-    const legend = Object.values(_coachColors || {}).map(cc => `<span class="legend-item"><span class="dot" style="background:${cc.color}"></span>${esc(cc.name)}</span>`).join('');
+    let legend = Object.values(_coachColors || {}).map(cc => `<span class="legend-item"><span class="dot" style="background:${cc.color}"></span>${esc(cc.name)}</span>`).join('');
+    if (calEvents.length) legend += `<span class="legend-item"><span class="dot" style="background:#6366F1"></span>📅 Google Calendar</span>`;
     body.innerHTML = `${legend ? `<div class="coach-legend">${legend}</div>` : ''}<div class="cal-grid">${cells}</div>`;
-    $$('.cal-cell[data-day]', body).forEach(c => c.onclick = () => dayModal(+c.dataset.day, byDay[+c.dataset.day] || []));
+    $$('.cal-cell[data-day]', body).forEach(c => c.onclick = () => dayModal(+c.dataset.day, byDay[+c.dataset.day] || [], byDayCal[+c.dataset.day] || []));
     $$('.cal-ev[data-sid]', body).forEach(el => el.onclick = (e) => { e.stopPropagation(); sessionDetail(el.dataset.sid); });
+    $$('.cal-ev[data-gcal]', body).forEach(el => el.onclick = (e) => { e.stopPropagation(); gcalDetail(el.dataset.gcal); });
+  }
+
+  // Изглед само за преглед на събитие от Google Calendar
+  function gcalDetail(id) {
+    const ev = _gcalById[id];
+    if (!ev) return;
+    const when = ev.allDay ? 'Цял ден' : `${fmtTime(ev.startTime)}${ev.endTime ? '–' + fmtTime(ev.endTime) : ''}`;
+    modal({ title: ev.title || 'Събитие', body: `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <span class="chip">${I.cal}&nbsp;${fmtDate(ev.date)}</span>
+        <span class="chip">${I.clock}&nbsp;${esc(when)}</span>
+        ${ev.location ? `<span class="chip">${I.pin}&nbsp;${esc(ev.location)}</span>` : ''}
+      </div>
+      ${ev.description ? `<div class="info-item"><div class="k">Описание</div><div class="v">${esc(ev.description)}</div></div>` : ''}
+      <p class="subtle" style="margin-top:14px">📅 От Google Calendar · само за преглед</p>`,
+      footer: `<button class="btn btn-primary" data-close>Затвори</button>` });
   }
 
   // Обогатява клетките на календара с имената на децата (в стил Apple Calendar), без да блокира първото рисуване
@@ -374,9 +414,10 @@
     });
   }
 
-  function dayModal(day, sessions) {
+  function dayModal(day, sessions, calEvents) {
+    calEvents = calEvents || [];
     const dateStr = `${day} ${MONTHS[calState.m]} ${calState.y}`;
-    const rows = sessions.length ? sessions.sort((a,b)=>a.startTime.localeCompare(b.startTime)).map(s => `
+    const rows = sessions.length ? sessions.slice().sort((a,b)=>a.startTime.localeCompare(b.startTime)).map(s => `
       <div class="slot" data-sid="${s.id}" style="border-left:5px solid ${coachColor(s.coachId)}">
         <div class="slot-time">${fmtTime(s.startTime)}</div>
         <div class="slot-main"><div class="t">${esc(s.coachName || 'Треньор')}</div>
@@ -384,10 +425,21 @@
         ${I.chevR}
       </div>`).join('') : emptyState(I.cal, 'Няма тренировки', 'Добави първата за този ден.');
 
-    modal({ title: dateStr, body: `<div class="stagger" style="display:grid;gap:12px">${rows}</div>`,
+    const calRows = calEvents.length ? `
+      <div style="margin-top:6px;font-weight:600;font-family:var(--font-head);display:flex;align-items:center;gap:6px">📅 Google Calendar</div>
+      ${calEvents.slice().sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||'')).map(ev => `
+      <div class="slot" data-gcal="${esc(ev.id)}" style="border-left:5px solid #6366F1">
+        <div class="slot-time">${ev.allDay ? 'ден' : fmtTime(ev.startTime)}</div>
+        <div class="slot-main"><div class="t">${esc(ev.title)}</div>
+          ${ev.location?`<div class="s">${esc(ev.location)}</div>`:''}</div>
+        ${I.chevR}
+      </div>`).join('')}` : '';
+
+    modal({ title: dateStr, body: `<div class="stagger" style="display:grid;gap:12px">${rows}${calRows}</div>`,
       footer: `<button class="btn btn-ghost" data-close>Затвори</button><button class="btn btn-primary" id="addOnDay">${I.plus} Добави</button>` });
     $('#addOnDay').onclick = () => { closeModal(); sessionForm(null, new Date(calState.y, calState.m, day)); };
     $$('.slot[data-sid]').forEach(el => el.onclick = () => { closeModal(); sessionDetail(el.dataset.sid); });
+    $$('.slot[data-gcal]').forEach(el => el.onclick = () => { closeModal(); gcalDetail(el.dataset.gcal); });
   }
 
   // Списък с часове в 24-часов формат (06:00–22:00, на 15 минути)
@@ -1083,6 +1135,7 @@
   /* ---------- Стилове за пикери (малки) ---------- */
   const st = document.createElement('style');
   st.textContent = `
+    .cal-ev.cal-gcal{background:#EEF0FF !important;color:#3730A3 !important;border:1px dashed #A5B4FC;font-weight:600}
     .trend{display:inline-flex;align-items:center;gap:1px;vertical-align:middle;font-family:var(--font-head);font-weight:800;font-size:.78rem;padding:2px 6px 2px 4px;border-radius:var(--r-pill)}
     .trend svg{width:13px;height:13px;flex-shrink:0}
     .trend-up{color:#1B7A47;background:#D9F7E6}

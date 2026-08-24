@@ -163,6 +163,7 @@ function handle_(req) {
 
       case 'sessions':             return actSessions_(p);
       case 'calendar':             return actSessions_(p);
+      case 'calendarEvents':       return actCalendarEvents_(p);
       case 'session':              return actSession_(p);
       case 'createSession':        return actCreateSession_(p);
       case 'updateSession':        return actUpdateSession_(p);
@@ -431,6 +432,37 @@ function actRemoveParticipant_(p) {
     .filter(function (pt) { return String(pt.sessionId) === String(p.sessionId) && String(pt.childId) === String(p.childId); })
     .forEach(function (pt) { deleteById_('Participants', pt.id); });
   return D(null);
+}
+
+/* ============================================================
+   Действие — Събития от Google Calendar (само четене)
+   ============================================================ */
+function actCalendarEvents_(p) {
+  var y = Number(p.year), m = Number(p.month);        // month 1-12
+  var start = new Date(y, m - 1, 1, 0, 0, 0);
+  var end = new Date(y, m, 1, 0, 0, 0);               // 1-во число на следващия месец
+  var cal;
+  try { cal = CalendarApp.getDefaultCalendar(); } catch (e) { return D([]); }
+  if (!cal) return D([]);
+  var events = cal.getEvents(start, end) || [];
+  var out = events.map(function (e) {
+    var allDay = e.isAllDayEvent();
+    var s = e.getStartTime(), en = e.getEndTime();
+    return {
+      id: e.getId(),
+      title: e.getTitle() || '(без заглавие)',
+      date: Utilities.formatDate(s, TZ, 'yyyy-MM-dd'),
+      startTime: allDay ? null : Utilities.formatDate(s, TZ, 'HH:mm:ss'),
+      endTime: allDay ? null : Utilities.formatDate(en, TZ, 'HH:mm:ss'),
+      location: nn_(e.getLocation()),
+      description: nn_((e.getDescription() || '').slice(0, 500)),
+      allDay: allDay
+    };
+  });
+  out.sort(function (a, b) {
+    return (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || ''));
+  });
+  return D(out);
 }
 
 /* ============================================================
