@@ -190,9 +190,9 @@
   function openConfig() {
     modal({
       title: 'Връзка към API',
-      body: `<div class="field"><label>Адрес на сървъра (API)</label>
-        <input class="input" id="apiBaseIn" value="${esc(API.getBase())}" placeholder="https://...">
-        <span class="hint">Напр. локално: https://localhost:7174 · в Azure: адресът на твоя App Service.</span></div>`,
+      body: `<div class="field"><label>Адрес на сървъра (Google Apps Script)</label>
+        <input class="input" id="apiBaseIn" value="${esc(API.getBase())}" placeholder="https://script.google.com/macros/s/.../exec">
+        <span class="hint">Адресът на твоето Apps Script Web App — завършва на <b>/exec</b>.</span></div>`,
       footer: `<button class="btn btn-ghost" data-close>Отказ</button><button class="btn btn-primary" id="saveCfg">Запази</button>`
     });
     $('#saveCfg').onclick = () => { API.setBase($('#apiBaseIn').value.trim()); toast('Запазено', 'ok'); closeModal(); };
@@ -867,16 +867,6 @@
     modal({ title: c ? 'Редакция на картон' : 'Ново дете', large: true, body: `
       <div class="form-section">
         <div class="form-section-title">${I.kids} Основна информация</div>
-        <div class="field"><label>Снимка</label>
-          <div class="photo-up">
-            <div class="photo-preview" id="c_photo_prev">${c?.photoUrl?`<img src="${esc(c.photoUrl)}" alt="">`:I.kids}</div>
-            <div style="flex:1;min-width:0">
-              <input type="file" id="c_photo_file" accept="image/*" class="input">
-              <span class="hint" id="c_photo_hint">JPG или PNG, до 8 MB — качва се от устройството ти</span>
-            </div>
-          </div>
-          <input type="hidden" id="c_photo" value="${esc(c?.photoUrl||'')}">
-        </div>
         <div class="grid-2">${field('Име','c_fn',c?.firstName)}${field('Фамилия','c_ln',c?.lastName)}</div>
         <div class="grid-2">${field('Дата на раждане','c_bd',toDateInput(c?.birthDate),'date')}
           <div class="field"><label>Пол</label><select class="select" id="c_g">${genderOpts}</select></div></div>
@@ -902,24 +892,9 @@
       </div>`,
       footer: `<button class="btn btn-ghost" data-close>Отказ</button><button class="btn btn-primary" id="c_save">${I.check} Запази</button>` });
 
-    // Качване на снимка от устройството
-    const fileIn = $('#c_photo_file');
-    if (fileIn) fileIn.onchange = async () => {
-      const f = fileIn.files[0]; if (!f) return;
-      const hint = $('#c_photo_hint'), saveBtn = $('#c_save');
-      hint.textContent = 'Качване…'; saveBtn.disabled = true;
-      try {
-        const r = await API.uploadPhoto(f);
-        $('#c_photo').value = r.url;
-        $('#c_photo_prev').innerHTML = `<img src="${esc(r.url)}" alt="">`;
-        hint.textContent = 'Снимката е качена ✓';
-      } catch (e) { hint.textContent = 'Грешка при качване'; err(e); }
-      finally { saveBtn.disabled = false; }
-    };
-
     $('#c_save').onclick = async () => {
       const dto = { firstName:$('#c_fn').value.trim(), lastName:$('#c_ln').value.trim(), birthDate:$('#c_bd').value,
-        photoUrl:$('#c_photo').value.trim()||null, gender:$('#c_g').value||null, diagnosis:$('#c_diag').value.trim()||null,
+        photoUrl:null, gender:$('#c_g').value||null, diagnosis:$('#c_diag').value.trim()||null,
         objectiveCondition:$('#c_obj').value.trim()||null, level:$('#c_lvl').value.trim()||null,
         allergiesMedical:$('#c_alg').value.trim()||null, parentContact:$('#c_pc').value.trim()||null,
         emergencyContact:$('#c_ec').value.trim()||null, goals:$('#c_goals').value.trim()||null,

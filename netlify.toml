@@ -1,0 +1,13 @@
+# Netlify настройки за SwimWithSmile (статичен сайт, без build)
+[build]
+  publish = "."
+  command = ""
+
+# Кеширане: HTML винаги свежо, за да се вижда веднага нова версия
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Папката apps-script/ съдържа само бекенд кода (Code.gs) —
+# тя не е част от сайта, но и да се качи, не съдържа тайни.

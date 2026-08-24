@@ -1,27 +1,22 @@
 /* ============================================================
-   SwimWithSmile — API клиент
-   Комуникира с ASP.NET Core Web API.
-   Base URL се пази в localStorage, за да можеш да го смениш
-   към Azure адреса без промяна на кода.
+   SwimWithSmile — API клиент (Google Apps Script + Google Sheet)
+   ------------------------------------------------------------
+   Вместо ASP.NET сървър, приложението говори с едно Google
+   Apps Script Web App, което чете/пише в Google таблица.
+
+   ➜ ВАЖНО: постави тук адреса на своя разгърнат Web App
+     (Deploy → Web app → URL, който завършва на /exec):
    ============================================================ */
 
 const API = (() => {
-  const LS_BASE = 'sws.apiBase';
+  const DEFAULT_BASE = 'https://script.google.com/macros/s/AKfycbyQJ0IlWdZv6p7-Fqxk0RbPnvaHWv_cIsCuqx-boC0zByH6JJ8ELPAOmI4jhDrvPGmDrg/exec';
+
+  const LS_BASE  = 'sws.apiBase';
   const LS_TOKEN = 'sws.token';
-  const LS_USER = 'sws.user';
-
-  // Работим директно със сървъра в Azure (облачна база + блоб).
-  const DEFAULT_BASE = 'https://swimwithsmile.azurewebsites.net';
-
-  // Еднократно почистване: ако е останал запазен локален адрес от тестовете,
-  // го махаме, за да сочим към облака по подразбиране.
-  (() => {
-    const s = localStorage.getItem(LS_BASE);
-    if (s && /localhost|127\.0\.0\.1/.test(s)) localStorage.removeItem(LS_BASE);
-  })();
+  const LS_USER  = 'sws.user';
 
   const getBase = () => localStorage.getItem(LS_BASE) || DEFAULT_BASE;
-  const setBase = (v) => localStorage.setItem(LS_BASE, v.replace(/\/+$/, ''));
+  const setBase = (v) => localStorage.setItem(LS_BASE, String(v).replace(/\/+$/, ''));
 
   const getToken = () => localStorage.getItem(LS_TOKEN);
   const setToken = (t) => t ? localStorage.setItem(LS_TOKEN, t) : localStorage.removeItem(LS_TOKEN);
@@ -29,46 +24,45 @@ const API = (() => {
   const getUser = () => { try { return JSON.parse(localStorage.getItem(LS_USER)); } catch { return null; } };
   const setUser = (u) => u ? localStorage.setItem(LS_USER, JSON.stringify(u)) : localStorage.removeItem(LS_USER);
 
-  async function request(method, path, body, auth = true) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (auth && getToken()) headers['Authorization'] = `Bearer ${getToken()}`;
-
-    let res;
-    try {
-      res = await fetch(getBase() + path, {
-        method,
-        headers,
-        cache: 'no-store', // винаги свежи данни, без кеширан стар отговор
-        body: body != null ? JSON.stringify(body) : undefined
-      });
-    } catch (e) {
-      throw new ApiError(0, 'Няма връзка със сървъра. Провери адреса на API и дали е стартиран.');
-    }
-
-    if (res.status === 401 && auth) {
-      setToken(null); setUser(null);
-      throw new ApiError(401, 'Сесията изтече. Влез отново.');
-    }
-
-    if (!res.ok) {
-      let msg = `Грешка ${res.status}`;
-      try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
-      throw new ApiError(res.status, msg);
-    }
-
-    if (res.status === 204) return null;
-    const ct = res.headers.get('content-type') || '';
-    return ct.includes('application/json') ? res.json() : res.text();
-  }
-
   class ApiError extends Error {
     constructor(status, message) { super(message); this.status = status; }
   }
 
-  const get = (p) => request('GET', p);
-  const post = (p, b, auth = true) => request('POST', p, b, auth);
-  const put = (p, b) => request('PUT', p, b);
-  const del = (p) => request('DELETE', p);
+  // Всичко минава през един POST. Content-Type: text/plain пести
+  // CORS preflight, който Apps Script не обслужва добре.
+  async function call(action, payload = {}, auth = true) {
+    const base = getBase();
+    if (!base || /ПОСТАВИ_ТУК/.test(base)) {
+      throw new ApiError(0, 'Няма зададен адрес на сървъра. Отвори ⚙️ и постави адреса на Apps Script.');
+    }
+    const body = { action, payload };
+    if (auth) body.token = getToken();
+
+    let res;
+    try {
+      res = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        cache: 'no-store',
+        redirect: 'follow',
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      throw new ApiError(0, 'Няма връзка със сървъра. Провери адреса на API (⚙️).');
+    }
+
+    let data;
+    try { data = await res.json(); }
+    catch { throw new ApiError(res.status || 0, 'Неочакван отговор от сървъра. Провери дали адресът завършва на /exec и че достъпът е „Anyone".'); }
+
+    if (!data || data.ok !== true) {
+      const status = (data && data.status) || res.status || 400;
+      const msg = (data && data.message) || `Грешка ${status}`;
+      if (status === 401 && auth) { setToken(null); setUser(null); }
+      throw new ApiError(status, msg);
+    }
+    return data.data;
+  }
 
   return {
     ApiError, getBase, setBase, getToken, getUser,
@@ -76,70 +70,53 @@ const API = (() => {
 
     // ---- Auth ----
     async login(email, password) {
-      const r = await post('/api/auth/login', { email, password }, false);
+      const r = await call('login', { email, password }, false);
       setToken(r.token); setUser({ id: r.coachId, name: r.fullName, email: r.email });
       return r;
     },
     logout() { setToken(null); setUser(null); },
-    coaches: () => get('/api/auth/coaches'),
-    createCoach: (dto) => post('/api/auth/coaches', dto),
-
-    // ---- Снимки (качване от устройство) ----
-    async uploadPhoto(file) {
-      const fd = new FormData();
-      fd.append('file', file);
-      const headers = {};
-      if (getToken()) headers['Authorization'] = `Bearer ${getToken()}`;
-      let res;
-      try { res = await fetch(getBase() + '/api/photos', { method: 'POST', headers, body: fd }); }
-      catch { throw new ApiError(0, 'Няма връзка със сървъра при качването.'); }
-      if (!res.ok) {
-        let msg = 'Качването се провали.';
-        try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
-        throw new ApiError(res.status, msg);
-      }
-      return res.json(); // { url, name }
-    },
+    coaches: () => call('coaches'),
+    createCoach: (dto) => call('createCoach', { data: dto }),
 
     // ---- Children ----
-    children: (includeInactive = false) => get(`/api/children?includeInactive=${includeInactive}`),
-    child: (id) => get(`/api/children/${id}`),
-    createChild: (dto) => post('/api/children', dto),
-    updateChild: (id, dto) => put(`/api/children/${id}`, dto),
-    regenerateCode: (id) => post(`/api/children/${id}/regenerate-code`),
-    childHistory: (id) => get(`/api/children/${id}/history`),
-    childProgress: (id) => get(`/api/children/${id}/progress`),
-    childAchievements: (id) => get(`/api/children/${id}/achievements`),
-    childCompetitions: (id) => get(`/api/children/${id}/competitions`),
+    children: (includeInactive = false) => call('children', { includeInactive }),
+    child: (id) => call('child', { id }),
+    createChild: (dto) => call('createChild', { data: dto }),
+    updateChild: (id, dto) => call('updateChild', { id, data: dto }),
+    regenerateCode: (id) => call('regenerateCode', { id }),
+    childHistory: (id) => call('childHistory', { id }),
+    childProgress: (id) => call('childProgress', { id }),
+    childAchievements: (id) => call('childAchievements', { id }),
+    childCompetitions: (id) => call('childCompetitions', { id }),
 
     // ---- Sessions ----
-    calendar: (y, m) => get(`/api/sessions/calendar?year=${y}&month=${m}`),
-    sessions: (y, m) => get(`/api/sessions?year=${y}&month=${m}`),
-    session: (id) => get(`/api/sessions/${id}`),
-    createSession: (dto) => post('/api/sessions', dto),
-    updateSession: (id, dto) => put(`/api/sessions/${id}`, dto),
-    deleteSession: (id) => del(`/api/sessions/${id}`),
-    upsertParticipant: (sid, dto) => put(`/api/sessions/${sid}/participants`, dto),
-    removeParticipant: (sid, cid) => del(`/api/sessions/${sid}/participants/${cid}`),
+    calendar: (y, m) => call('sessions', { year: y, month: m }),
+    sessions: (y, m) => call('sessions', { year: y, month: m }),
+    session: (id) => call('session', { id }),
+    createSession: (dto) => call('createSession', { data: dto }),
+    updateSession: (id, dto) => call('updateSession', { id, data: dto }),
+    deleteSession: (id) => call('deleteSession', { id }),
+    upsertParticipant: (sid, dto) => call('upsertParticipant', { sessionId: sid, data: dto }),
+    removeParticipant: (sid, cid) => call('removeParticipant', { sessionId: sid, childId: cid }),
 
     // ---- Progress ----
-    createProgress: (dto) => post('/api/progress', dto),
-    deleteProgress: (id) => del(`/api/progress/${id}`),
+    createProgress: (dto) => call('createProgress', { data: dto }),
+    deleteProgress: (id) => call('deleteProgress', { id }),
 
     // ---- Achievements ----
-    achievements: (includeInactive = false) => get(`/api/achievements?includeInactive=${includeInactive}`),
-    createAchievement: (dto) => post('/api/achievements', dto),
-    updateAchievement: (id, dto) => put(`/api/achievements/${id}`, dto),
-    deleteAchievement: (id) => del(`/api/achievements/${id}`),
-    award: (dto) => post('/api/achievements/award', dto),
-    removeAward: (id) => del(`/api/achievements/award/${id}`),
+    achievements: (includeInactive = false) => call('achievements', { includeInactive }),
+    createAchievement: (dto) => call('createAchievement', { data: dto }),
+    updateAchievement: (id, dto) => call('updateAchievement', { id, data: dto }),
+    deleteAchievement: (id) => call('deleteAchievement', { id }),
+    award: (dto) => call('award', { data: dto }),
+    removeAward: (id) => call('removeAward', { id }),
 
     // ---- Competitions ----
-    createCompetition: (dto) => post('/api/competitions', dto),
-    updateCompetition: (id, dto) => put(`/api/competitions/${id}`, dto),
-    deleteCompetition: (id) => del(`/api/competitions/${id}`),
+    createCompetition: (dto) => call('createCompetition', { data: dto }),
+    updateCompetition: (id, dto) => call('updateCompetition', { id, data: dto }),
+    deleteCompetition: (id) => call('deleteCompetition', { id }),
 
     // ---- Parent (публично) ----
-    parentDashboard: (code, birthDate) => post('/api/parent/dashboard', { code, birthDate }, false),
+    parentDashboard: (code, birthDate) => call('parentDashboard', { code, birthDate }, false),
   };
 })();
